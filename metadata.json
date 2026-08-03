@@ -1,0 +1,6 @@
+{
+  "name": "Temporizador de Intervalos",
+  "description": "Creador y controlador de intervalos de entrenamiento con alertas de sonido para series, ejercicios y descansos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
