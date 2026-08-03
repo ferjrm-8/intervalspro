@@ -2,22 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, Plus, Minus, Save, Trash2, Dumbbell, BookOpen,
-  Timer, RotateCcw, Sparkles, AlertCircle, ChevronDown, ChevronUp, Check, Info,
-  Volume2, Palette
+  Timer, RotateCcw, Sparkles, AlertCircle, ChevronDown, ChevronUp, Check, Info
 } from 'lucide-react';
 import { Routine } from '../types';
 import { getAllRoutines, saveAllRoutines } from '../utils/presets';
-import { AccentColor, THEMES } from '../utils/theme';
-import { audio } from '../utils/audio';
 
 interface WorkoutConfigProps {
   onStart: (routine: Routine) => void;
-  accentColor: AccentColor;
-  onSetAccentColor: (color: AccentColor) => void;
 }
 
-export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }: WorkoutConfigProps) {
-  const theme = THEMES[accentColor];
+export default function WorkoutConfig({ onStart }: WorkoutConfigProps) {
   // Load all routines
   const [routines, setRoutines] = useState<Routine[]>([]);
   
@@ -199,7 +193,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
         <div className="text-center md:text-left flex flex-col md:flex-row justify-between items-center gap-6 bg-[#0F0F0F] border border-zinc-800 p-8 rounded-2xl">
           <div>
             <h1 className="text-4xl font-black uppercase tracking-tighter text-white">
-              INTERVALS<span className={theme.text}>PRO</span>
+              INTERVALS<span className="text-[#CCFF00]">PRO</span>
             </h1>
             <p className="text-xs text-zinc-400 mt-1.5 uppercase font-bold tracking-wider">
               Tus propios intervalos en tus rutinas
@@ -207,75 +201,10 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
           </div>
           <div className="flex flex-col items-center md:items-end bg-black border border-zinc-800 px-6 py-4 rounded-xl min-w-[180px]">
             <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">TIEMPO ESTIMADO</span>
-            <span className={`text-3xl font-black ${theme.text} font-mono tracking-tighter mt-0.5`}>
+            <span className="text-3xl font-black text-[#CCFF00] font-mono tracking-tighter mt-0.5">
               {formatTime(calculateTotalDuration())}
             </span>
             <span className="text-[9px] text-zinc-600 font-bold uppercase mt-1 tracking-wider">Incluye 5s Prep.</span>
-          </div>
-        </div>
-
-        {/* Panel de Personalización y Sonido */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-[#0F0F0F] border border-zinc-800 p-6 rounded-2xl shadow-xl">
-          {/* Selector de Color del Tema */}
-          <div className="flex flex-col gap-3 justify-center">
-            <h3 className="text-[10px] text-zinc-400 uppercase font-black tracking-widest flex items-center gap-1.5">
-              <Palette className={`w-4 h-4 ${theme.text}`} /> COLOR DEL TEMA ACENTUADO
-            </h3>
-            <div className="flex flex-wrap gap-2.5 items-center">
-              {(['lime', 'rose', 'cyan', 'amber'] as AccentColor[]).map((col) => {
-                const opt = THEMES[col];
-                const active = accentColor === col;
-                return (
-                  <button
-                    key={col}
-                    onClick={() => onSetAccentColor(col)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer hover:scale-[1.03] ${
-                      active
-                        ? `${opt.bg} text-black border-transparent shadow-md ${opt.shadow}`
-                        : 'bg-black border-zinc-850 hover:border-zinc-700 text-zinc-400'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${active ? 'bg-black' : opt.bg}`} />
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Test Sound alerts */}
-          <div className="flex flex-col gap-3 justify-center border-t md:border-t-0 md:border-l border-zinc-800 pt-4 md:pt-0 md:pl-5">
-            <h3 className="text-[10px] text-zinc-400 uppercase font-black tracking-widest flex items-center gap-1.5">
-              <Volume2 className={`w-4 h-4 ${theme.text}`} /> PROBAR ALERTAS DE SONIDO
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-2">
-              <button
-                onClick={() => audio.playTick()}
-                className="py-1.5 px-2 rounded-xl bg-black hover:bg-zinc-900 border border-zinc-800 text-[9px] font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-colors cursor-pointer"
-              >
-                Tick ⏱️
-              </button>
-              <button
-                onClick={() => audio.playWorkStart()}
-                className="py-1.5 px-2 rounded-xl bg-black hover:bg-zinc-900 border border-zinc-800 text-[9px] font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-colors cursor-pointer"
-              >
-                Trabajo 🟢
-              </button>
-              <button
-                onClick={() => audio.playWorkEnd()}
-                className="py-1.5 px-2 rounded-xl bg-black hover:bg-zinc-900 border border-zinc-800 text-[9px] font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-colors cursor-pointer"
-              >
-                Descanso 🔴
-              </button>
-              <button
-                onClick={() => {
-                  audio.playSuccess();
-                }}
-                className="py-1.5 px-2 rounded-xl bg-black hover:bg-zinc-900 border border-zinc-800 text-[9px] font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-colors cursor-pointer"
-              >
-                Victoria 🏆
-              </button>
-            </div>
           </div>
         </div>
 
@@ -283,7 +212,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
         <div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3.5">
             <h2 className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.2em] flex items-center gap-2">
-              <BookOpen className={`w-4 h-4 ${theme.text}`} /> SELECCIONA UNA RUTINA
+              <BookOpen className="w-4 h-4 text-[#CCFF00]" /> SELECCIONA UNA RUTINA
             </h2>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
@@ -302,7 +231,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
                 onClick={handleCreateNewRoutine}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all hover:scale-[1.02] cursor-pointer ${
                   selectedRoutineId === 'new-routine'
-                    ? `${theme.bg} text-black ${theme.border} shadow-md ${theme.shadow}`
+                    ? 'bg-[#CCFF00] text-black border-[#CCFF00] shadow-md shadow-[#CCFF00]/5'
                     : 'bg-black border-zinc-850 hover:border-zinc-700 text-white'
                 }`}
               >
@@ -319,7 +248,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
                   onClick={() => handleSelectRoutine(routine)}
                   className={`group relative p-5 rounded-xl text-left transition-all border duration-200 hover:scale-[1.01] cursor-pointer ${
                     active 
-                      ? `bg-[#141414] ${theme.border} shadow-md ${theme.shadow}` 
+                      ? 'bg-[#141414] border-[#CCFF00] shadow-md shadow-[#CCFF00]/5' 
                       : 'bg-[#0F0F0F] border-zinc-800 hover:border-zinc-700'
                   }`}
                 >
@@ -336,13 +265,13 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
                   <div className="flex items-center justify-between gap-1.5 pr-8">
                     <h3 className="font-black text-white text-sm uppercase tracking-tight truncate">{routine.name}</h3>
                     {active && (
-                      <span className={`shrink-0 ${theme.bg} text-black rounded-full p-0.5`}>
+                      <span className="shrink-0 bg-[#CCFF00] text-black rounded-full p-0.5">
                         <Check className="w-2.5 h-2.5 stroke-[3]" />
                       </span>
                     )}
                   </div>
                   <div className="mt-2.5 flex flex-wrap gap-1">
-                    <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-900 ${theme.text} border border-zinc-800`}>
+                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-900 text-[#CCFF00] border border-zinc-800">
                       {routine.series} {routine.series === 1 ? 'Ronda' : 'Rondas'}
                     </span>
                     <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-800">
@@ -350,7 +279,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
                     </span>
                   </div>
                   <div className="mt-3 text-[10px] text-zinc-400 flex items-center justify-between uppercase font-bold tracking-wider pt-2 border-t border-zinc-900">
-                    <span>Trabajo: <strong className={`${theme.text} font-mono`}>{routine.workTime}s</strong></span>
+                    <span>Trabajo: <strong className="text-[#CCFF00] font-mono">{routine.workTime}s</strong></span>
                     {routine.restTime > 0 && <span>Desc: <strong className="text-zinc-300 font-mono">{routine.restTime}s</strong></span>}
                   </div>
                 </div>
@@ -377,7 +306,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
           {/* Main Parameters Card */}
           <div className="bg-[#0F0F0F] border border-zinc-800 p-6 rounded-2xl flex flex-col gap-6">
             <h2 className="text-[11px] font-black text-white uppercase tracking-[0.15em] border-b border-zinc-800 pb-3 flex items-center gap-2">
-              <Dumbbell className={`w-4 h-4 ${theme.text}`} /> Configurar Tiempos e Intervalos
+              <Dumbbell className="w-4 h-4 text-[#CCFF00]" /> Configurar Tiempos e Intervalos
             </h2>
 
             {/* Series selector */}
@@ -432,9 +361,9 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
             <div className="flex flex-col gap-2">
               <div className="flex justify-between items-center">
                 <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <Timer className={`w-4 h-4 ${theme.text}`} /> Tiempo de Trabajo
+                  <Timer className="w-4 h-4 text-[#CCFF00]" /> Tiempo de Trabajo
                 </label>
-                <span className={`text-2xl font-black ${theme.text} font-mono bg-black px-3 py-1 rounded-md border border-zinc-800`}>
+                <span className="text-2xl font-black text-[#CCFF00] font-mono bg-black px-3 py-1 rounded-md border border-zinc-800">
                   {formatTime(workTime)}
                 </span>
               </div>
@@ -548,7 +477,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
           <div className="bg-[#0F0F0F] border border-zinc-800 p-6 rounded-2xl flex flex-col gap-4">
             <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
               <h2 className="text-[11px] font-black text-white uppercase tracking-[0.15em] flex items-center gap-2">
-                <Dumbbell className={`w-4 h-4 ${theme.text}`} /> Nombres de Ejercicios
+                <Dumbbell className="w-4 h-4 text-[#CCFF00]" /> Nombres de Ejercicios
               </h2>
               <button
                 onClick={() => setIsExercisesCollapsed(!isExercisesCollapsed)}
@@ -597,7 +526,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <button
                   onClick={() => setShowSaveModal(true)}
-                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 ${theme.text} text-[10px] font-black uppercase tracking-wider transition-all hover:scale-[1.02] cursor-pointer`}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[#CCFF00] text-[10px] font-black uppercase tracking-wider transition-all hover:scale-[1.02] cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" /> Guardar Rutina
                 </button>
@@ -610,7 +539,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
         <div className="flex flex-col gap-3 mt-2">
           <button
             onClick={handleStartWorkout}
-            className={`w-full flex items-center justify-center gap-2.5 py-5 md:py-6 px-6 rounded-2xl ${theme.bg} text-black font-black text-2xl uppercase tracking-tighter ${theme.hoverBg} active:scale-[0.98] transition-all cursor-pointer shadow-lg ${theme.shadow}`}
+            className="w-full flex items-center justify-center gap-2.5 py-5 md:py-6 px-6 rounded-2xl bg-[#CCFF00] text-black font-black text-2xl uppercase tracking-tighter hover:bg-[#b8e600] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-[#CCFF00]/10"
           >
             <Play className="w-6 h-6 fill-black stroke-black" /> EMPEZAR ENTRENAMIENTO
           </button>
@@ -633,7 +562,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-[#0F0F0F] border border-zinc-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl"
             >
-              <h3 className={`text-lg font-black uppercase tracking-tighter ${theme.text} mb-2 flex items-center gap-2`}>
+              <h3 className="text-lg font-black uppercase tracking-tighter text-[#CCFF00] mb-2 flex items-center gap-2">
                 <Sparkles className="w-5 h-5" /> Guardar Rutina
               </h3>
               <p className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider mb-4">
@@ -648,7 +577,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
                   onChange={(e) => setNewRoutineName(e.target.value)}
                   placeholder="Ej: Cardio Intenso Piernas"
                   maxLength={24}
-                  className="w-full bg-black border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-700 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-zinc-500"
+                  className="w-full bg-black border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-700 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-[#CCFF00]"
                 />
               </div>
 
@@ -662,7 +591,7 @@ export default function WorkoutConfig({ onStart, accentColor, onSetAccentColor }
                 <button
                   onClick={handleSaveRoutine}
                   disabled={!newRoutineName.trim()}
-                  className={`flex-1 py-2.5 rounded-xl ${theme.bg} ${theme.hoverBg} disabled:opacity-40 disabled:hover:bg-zinc-500 text-black text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer`}
+                  className="flex-1 py-2.5 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-40 disabled:hover:bg-[#CCFF00] text-black text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   Guardar
                 </button>

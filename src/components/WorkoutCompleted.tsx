@@ -1,18 +1,15 @@
 import React from 'react';
 import { Trophy, Flame, Timer, CheckCircle, RotateCcw, Home, Award } from 'lucide-react';
 import { WorkoutStats, Routine } from '../types';
-import { AccentColor, THEMES } from '../utils/theme';
 
 interface WorkoutCompletedProps {
   stats: WorkoutStats;
   routine: Routine;
   onRestart: () => void;
   onGoHome: () => void;
-  accentColor: AccentColor;
 }
 
-export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome, accentColor }: WorkoutCompletedProps) {
-  const theme = THEMES[accentColor];
+export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome }: WorkoutCompletedProps) {
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -35,13 +32,12 @@ export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome, 
             return (
               <div
                 key={i}
-                className="absolute rounded-full animate-bounce-slow"
+                className="absolute bg-[#CCFF00] rounded-full animate-bounce-slow"
                 style={{
                   width: `${size}px`,
                   height: `${size}px`,
                   left: `${left}%`,
                   bottom: `-10px`,
-                  backgroundColor: theme.hex,
                   animationDuration: `${duration}s`,
                   animationDelay: `${delay}s`,
                 }}
@@ -51,15 +47,15 @@ export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome, 
         </div>
 
         {/* Big trophy container */}
-        <div className={`relative flex items-center justify-center w-20 h-20 rounded-xl bg-black border border-zinc-800 ${theme.text} mb-5`}>
+        <div className="relative flex items-center justify-center w-20 h-20 rounded-xl bg-black border border-zinc-800 text-[#CCFF00] mb-5">
           <Trophy className="w-10 h-10" />
           <div className="absolute -top-1 -right-1 flex h-4 w-4">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${theme.bg} opacity-75`}></span>
-            <span className={`relative inline-flex rounded-full h-4 w-4 ${theme.bg}`}></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#CCFF00] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-[#CCFF00]"></span>
           </div>
         </div>
 
-        <span className={`text-[10px] font-black ${theme.text} tracking-widest uppercase`}>
+        <span className="text-[10px] font-black text-[#CCFF00] tracking-widest uppercase">
           ¡TRABAJO TERMINADO!
         </span>
         <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter mt-1.5">
@@ -81,7 +77,7 @@ export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome, 
           </div>
 
           <div className="bg-black border border-zinc-800 p-4 rounded-xl flex flex-col items-center justify-center shadow-inner">
-            <CheckCircle className={`w-5 h-5 ${theme.text} mb-1`} />
+            <CheckCircle className="w-5 h-5 text-[#CCFF00] mb-1" />
             <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest font-sans">RONDAS</span>
             <span className="text-lg font-black text-white font-mono mt-1">
               {stats.completedSeries} / {routine.series}
@@ -110,7 +106,7 @@ export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome, 
         </button>
         <button
           onClick={onGoHome}
-          className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl ${theme.bg} text-black font-black uppercase tracking-wider text-xs transition-all ${theme.hoverBg} hover:scale-[1.01] active:scale-98 cursor-pointer shadow-md ${theme.shadow}`}
+          className="flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl bg-[#CCFF00] text-black font-black uppercase tracking-wider text-xs transition-all hover:bg-[#b8e600] hover:scale-[1.01] active:scale-98 cursor-pointer shadow-md shadow-[#CCFF00]/5"
         >
           <Home className="w-4 h-4" /> VOLVER AL INICIO
         </button>
@@ -118,8 +114,8 @@ export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome, 
 
       {/* Detailed Workout Summary */}
       <div className="mt-10 text-left bg-[#0F0F0F] border border-zinc-800 rounded-2xl p-6 shadow-lg">
-        <h2 className={`text-xs font-black ${theme.text} uppercase tracking-widest flex items-center gap-2 mb-5 pb-3 border-b border-zinc-900`}>
-          <Award className={`w-4 h-4 ${theme.text}`} /> RESUMEN DETALLADO DEL ENTRENAMIENTO
+        <h2 className="text-xs font-black text-[#CCFF00] uppercase tracking-widest flex items-center gap-2 mb-5 pb-3 border-b border-zinc-900">
+          <Award className="w-4 h-4 text-[#CCFF00]" /> RESUMEN DETALLADO DEL ENTRENAMIENTO
         </h2>
         
         {/* Interval Settings Grid */}
@@ -138,7 +134,7 @@ export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome, 
           </div>
           <div className="bg-black border border-zinc-900 p-3 rounded-xl shadow-inner">
             <div className="text-[9px] text-zinc-500 font-black uppercase tracking-wider font-sans">Ejercicios</div>
-            <div className={`text-base font-black ${theme.text} font-mono mt-0.5`}>{routine.exercisesCount}</div>
+            <div className="text-base font-black text-[#CCFF00] font-mono mt-0.5">{routine.exercisesCount}</div>
           </div>
         </div>
 
@@ -152,7 +148,7 @@ export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome, 
               const name = routine.exerciseNames?.[idx] || `Ejercicio ${idx + 1}`;
               return (
                 <div key={idx} className="flex items-center gap-3 bg-black px-3.5 py-3 rounded-xl border border-zinc-900">
-                  <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${theme.accentBg} ${theme.text}`}>
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#CCFF00]/10 text-[#CCFF00]">
                     <CheckCircle className="w-3.5 h-3.5 stroke-[2.5]" />
                   </div>
                   <div className="truncate text-xs font-black text-zinc-200 uppercase tracking-wide">
