@@ -60,14 +60,42 @@ export const DEFAULT_PRESETS: Routine[] = [
 
 const LOCAL_STORAGE_KEY_ALL = 'workout_interval_routines_v3';
 
+// Highly robust localStorage wrapper with in-memory fallback to prevent crashes 
+// on restricted mobile browsers, iOS/Android WebViews, and private windows.
+const memoryStorage: Record<string, string> = {};
+
+const safeStorage = {
+  getItem(key: string): string | null {
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch (error) {
+      console.warn('localStorage is blocked or unavailable, using in-memory storage:', error);
+    }
+    return memoryStorage[key] || null;
+  },
+  setItem(key: string, value: string): void {
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && window.localStorage) {
+        window.localStorage.setItem(key, value);
+        return;
+      }
+    } catch (error) {
+      console.warn('localStorage is blocked or unavailable, using in-memory storage:', error);
+    }
+    memoryStorage[key] = value;
+  }
+};
+
 export function getAllRoutines(): Routine[] {
   try {
-    const data = localStorage.getItem(LOCAL_STORAGE_KEY_ALL);
+    const data = safeStorage.getItem(LOCAL_STORAGE_KEY_ALL);
     if (data !== null) {
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('Error reading routines from localStorage', error);
+    console.error('Error reading routines from safeStorage', error);
   }
   // First time initialization: clone the presets so they can be individually deleted/modified
   const initial = DEFAULT_PRESETS.map(r => ({ ...r, isPreset: false })); // Make them deleteable
@@ -77,9 +105,9 @@ export function getAllRoutines(): Routine[] {
 
 export function saveAllRoutines(routines: Routine[]): void {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY_ALL, JSON.stringify(routines));
+    safeStorage.setItem(LOCAL_STORAGE_KEY_ALL, JSON.stringify(routines));
   } catch (error) {
-    console.error('Error saving routines to localStorage', error);
+    console.error('Error saving routines to safeStorage', error);
   }
 }
 
@@ -87,20 +115,20 @@ const LOCAL_STORAGE_KEY = 'workout_interval_routines_v1';
 
 export function getCustomRoutines(): Routine[] {
   try {
-    const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const data = safeStorage.getItem(LOCAL_STORAGE_KEY);
     if (data) {
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('Error reading routines from localStorage', error);
+    console.error('Error reading routines from safeStorage', error);
   }
   return [];
 }
 
 export function saveCustomRoutines(routines: Routine[]): void {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(routines));
+    safeStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(routines));
   } catch (error) {
-    console.error('Error saving routines to localStorage', error);
+    console.error('Error saving routines to safeStorage', error);
   }
 }
