@@ -6,14 +6,17 @@ import {
 } from 'lucide-react';
 import { Routine, WorkoutStep, WorkoutStats } from '../types';
 import { audio } from '../utils/audio';
+import { AccentColor, THEMES } from '../utils/theme';
 
 interface WorkoutActiveProps {
   routine: Routine;
   onCancel: () => void;
   onComplete: (stats: WorkoutStats) => void;
+  accentColor: AccentColor;
 }
 
-export default function WorkoutActive({ routine, onCancel, onComplete }: WorkoutActiveProps) {
+export default function WorkoutActive({ routine, onCancel, onComplete, accentColor }: WorkoutActiveProps) {
+  const theme = THEMES[accentColor];
   // Generate all steps for the workout
   const steps = useRef<WorkoutStep[]>([]);
   if (steps.current.length === 0) {
@@ -218,16 +221,18 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
           progress: 'stroke-cyan-400',
           badge: 'bg-black text-cyan-400 border-zinc-800',
           glow: 'shadow-none',
-          title: 'PREPARACIÓN'
+          title: 'PREPARACIÓN',
+          strokeColor: '#22D3EE'
         };
       case 'work':
         return {
           bg: 'bg-[#0F0F0F] border-zinc-800',
-          text: 'text-[#CCFF00]',
-          progress: 'stroke-[#CCFF00]',
-          badge: 'bg-black text-[#CCFF00] border-zinc-800',
+          text: theme.text,
+          progress: '',
+          badge: `bg-black ${theme.text} border-zinc-800`,
           glow: 'shadow-none',
-          title: 'TRABAJO'
+          title: 'TRABAJO',
+          strokeColor: theme.hex
         };
       case 'rest_exercise':
         return {
@@ -236,7 +241,8 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
           progress: 'stroke-zinc-600',
           badge: 'bg-black text-zinc-400 border-zinc-800',
           glow: 'shadow-none',
-          title: 'DESCANSO'
+          title: 'DESCANSO',
+          strokeColor: '#52525B'
         };
       case 'rest_series':
         return {
@@ -245,7 +251,8 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
           progress: 'stroke-zinc-600',
           badge: 'bg-black text-zinc-400 border-zinc-800',
           glow: 'shadow-none',
-          title: 'DESCANSO DE SERIE'
+          title: 'DESCANSO DE SERIE',
+          strokeColor: '#52525B'
         };
       default:
         return {
@@ -254,7 +261,8 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
           progress: 'stroke-zinc-700',
           badge: 'bg-black text-zinc-400 border-zinc-800',
           glow: 'shadow-none',
-          title: 'ENTRENAMIENTO'
+          title: 'ENTRENAMIENTO',
+          strokeColor: '#3F3F46'
         };
     }
   };
@@ -281,7 +289,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
         {/* Top bar header */}
         <div className="flex justify-between items-center bg-[#0F0F0F] border border-zinc-800 px-5 py-4 rounded-xl">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-[#CCFF00] animate-pulse" />
+            <span className={`flex h-2.5 w-2.5 rounded-full ${theme.bg} animate-pulse`} />
             <h1 className="font-black text-white text-base md:text-lg uppercase tracking-tight truncate max-w-[180px] sm:max-w-xs">
               {routine.name}
             </h1>
@@ -294,7 +302,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               className={`p-2.5 rounded-xl transition-all border cursor-pointer ${
                 isMuted 
                   ? 'bg-zinc-900 text-rose-400 border-zinc-800 hover:bg-zinc-800' 
-                  : 'bg-zinc-900 text-[#CCFF00] border-zinc-800 hover:bg-zinc-800'
+                  : `bg-zinc-900 ${theme.text} border-zinc-800 hover:bg-zinc-800`
               }`}
               title={isMuted ? 'Activar sonido' : 'Silenciar'}
             >
@@ -337,7 +345,8 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
                 cx="50%"
                 cy="50%"
                 r={radius}
-                className={`${scheme.progress} transition-all duration-300`}
+                className="transition-all duration-300"
+                style={{ stroke: scheme.strokeColor }}
                 strokeWidth="14"
                 strokeDasharray={circumference}
                 strokeDashoffset={strokeDashoffset}
@@ -375,7 +384,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               <motion.h2 
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ repeat: Infinity, duration: 1 }}
-                className="text-4xl md:text-5xl font-black text-[#CCFF00] uppercase tracking-tighter leading-none animate-pulse"
+                className={`text-4xl md:text-5xl font-black ${theme.text} uppercase tracking-tighter leading-none animate-pulse`}
               >
                 ¡PREPÁRATE PARA EMPEZAR!
               </motion.h2>
@@ -403,7 +412,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               
               <div className="bg-black/60 border border-zinc-800 px-6 py-3 rounded-2xl text-center min-w-[160px] shadow-inner">
                 <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">EJERCICIO</div>
-                <div className="text-3xl font-black text-[#CCFF00] font-mono mt-0.5">
+                <div className={`text-3xl font-black ${theme.text} font-mono mt-0.5`}>
                   {currentStep.exerciseIndex + 1} <span className="text-zinc-600 text-base font-normal">/ {routine.exercisesCount}</span>
                 </div>
               </div>
@@ -421,7 +430,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-2.5 truncate">
                   <span className={`w-2.5 h-2.5 rounded-full ${
-                    nextStep.type === 'work' ? 'bg-[#CCFF00]' : nextStep.type === 'rest_series' ? 'bg-cyan-400' : 'bg-zinc-400'
+                    nextStep.type === 'work' ? theme.bg : nextStep.type === 'rest_series' ? 'bg-cyan-400' : 'bg-zinc-400'
                   }`} />
                   <span className="font-black text-white text-base uppercase tracking-tight truncate">
                     {nextStep.label}
@@ -433,8 +442,8 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               </div>
             ) : (
               <div className="flex items-center gap-2 mt-1">
-                <Award className="w-4 h-4 text-[#CCFF00]" />
-                <span className="font-black text-[#CCFF00] text-sm uppercase tracking-tight">
+                <Award className={`w-4 h-4 ${theme.text}`} />
+                <span className={`font-black ${theme.text} text-sm uppercase tracking-tight`}>
                   FIN DE LA SESIÓN (¡ÚLTIMO ESFUERZO!)
                 </span>
               </div>
@@ -475,7 +484,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
             className={`w-18 h-18 rounded-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-md ${
               isActive 
                 ? 'bg-white hover:bg-zinc-100 text-black' 
-                : 'bg-[#CCFF00] hover:bg-[#b8e600] text-black shadow-[#CCFF00]/5'
+                : `${theme.bg} ${theme.hoverBg} text-black ${theme.shadow}`
             }`}
             title={isActive ? 'Pausar' : 'Reanudar'}
           >
@@ -510,7 +519,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-[#0F0F0F] border border-zinc-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl"
             >
-              <h3 className="text-lg font-black uppercase tracking-tighter text-[#CCFF00] mb-2">
+              <h3 className={`text-lg font-black uppercase tracking-tighter ${theme.text} mb-2`}>
                 ¿Abandonar entrenamiento?
               </h3>
               <p className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider mb-5 leading-relaxed">
@@ -526,7 +535,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
                 </button>
                 <button
                   onClick={onCancel}
-                  className="flex-1 py-2.5 rounded-xl bg-rose-650 hover:bg-rose-600 text-black bg-[#CCFF00] hover:bg-[#b8e600] text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                  className={`flex-1 py-2.5 rounded-xl ${theme.bg} ${theme.hoverBg} text-black text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer`}
                 >
                   Sí, Salir
                 </button>
