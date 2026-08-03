@@ -3,13 +3,15 @@
   <head>
     <script>
       // Automatically redirect to the compiled production build in /docs/ when running on GitHub Pages
-      if (window.location.hostname.includes('github.io') && !window.location.pathname.endsWith('/docs/') && !window.location.pathname.includes('/docs/')) {
-        var baseDir = window.location.pathname;
-        if (!baseDir.endsWith('/')) {
-          baseDir += '/';
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.location.hostname.includes('github.io') && document.querySelector('script[src*="main.tsx"]') && !window.location.pathname.includes('/docs/')) {
+          var baseDir = window.location.pathname;
+          if (!baseDir.endsWith('/')) {
+            baseDir += '/';
+          }
+          window.location.replace(window.location.protocol + '//' + window.location.host + baseDir + 'docs/');
         }
-        window.location.replace(window.location.protocol + '//' + window.location.host + baseDir + 'docs/');
-      }
+      });
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
