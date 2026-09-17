@@ -115,48 +115,71 @@ export default function WorkoutCompleted({ stats, routine, onRestart, onGoHome }
       {/* Detailed Workout Summary */}
       <div className="mt-10 text-left bg-[#0F0F0F] border border-zinc-800 rounded-2xl p-6 shadow-lg">
         <h2 className="text-xs font-black text-[#CCFF00] uppercase tracking-widest flex items-center gap-2 mb-5 pb-3 border-b border-zinc-900">
-          <Award className="w-4 h-4 text-[#CCFF00]" /> RESUMEN DETALLADO DEL ENTRENAMIENTO
+          <Award className="w-4 h-4 text-[#CCFF00]" /> RESUMEN DE LOS BLOQUES DE ENTRENAMIENTO
         </h2>
         
-        {/* Interval Settings Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-6">
-          <div className="bg-black border border-zinc-900 p-3 rounded-xl shadow-inner">
-            <div className="text-[9px] text-zinc-500 font-black uppercase tracking-wider">Trabajo</div>
-            <div className="text-base font-black text-white font-mono mt-0.5">{routine.workTime}s</div>
+        {/* Blocks breakdown */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-6">
+          <div className="bg-black border border-zinc-900 p-3.5 rounded-xl shadow-inner">
+            <div className="text-[9px] text-amber-500 font-black uppercase tracking-wider">Bloque 1: Calentamiento</div>
+            <div className="text-base font-black text-amber-400 font-mono mt-0.5">
+              {routine.warmupTime ? `${Math.floor(routine.warmupTime / 60)} min` : 'Omitido'}
+            </div>
           </div>
-          <div className="bg-black border border-zinc-900 p-3 rounded-xl shadow-inner">
-            <div className="text-[9px] text-zinc-500 font-black uppercase tracking-wider">Descanso</div>
-            <div className="text-base font-black text-white font-mono mt-0.5">{routine.restTime}s</div>
+          <div className="bg-black border border-zinc-900 p-3.5 rounded-xl shadow-inner">
+            <div className="text-[9px] text-[#CCFF00] font-black uppercase tracking-wider">Bloque 2: Intervalos</div>
+            <div className="text-base font-black text-[#CCFF00] font-mono mt-0.5">
+              {routine.series} {routine.mode === 'fartlek' ? 'Cambios' : 'Rondas'} ({routine.workTime}s/{routine.restTime}s)
+            </div>
           </div>
-          <div className="bg-black border border-zinc-900 p-3 rounded-xl shadow-inner">
-            <div className="text-[9px] text-zinc-500 font-black uppercase tracking-wider">Desc. Series</div>
-            <div className="text-base font-black text-white font-mono mt-0.5">{routine.seriesRestTime}s</div>
-          </div>
-          <div className="bg-black border border-zinc-900 p-3 rounded-xl shadow-inner">
-            <div className="text-[9px] text-zinc-500 font-black uppercase tracking-wider font-sans">Ejercicios</div>
-            <div className="text-base font-black text-[#CCFF00] font-mono mt-0.5">{routine.exercisesCount}</div>
+          <div className="bg-black border border-zinc-900 p-3.5 rounded-xl shadow-inner">
+            <div className="text-[9px] text-emerald-500 font-black uppercase tracking-wider">Bloque 3: Enfriamiento</div>
+            <div className="text-base font-black text-emerald-400 font-mono mt-0.5">
+              {routine.cooldownTime ? `${Math.floor(routine.cooldownTime / 60)} min` : 'Omitido'}
+            </div>
           </div>
         </div>
 
-        {/* Exercises list executed */}
+        {/* Exercises or Interval info */}
         <div className="bg-black/40 border border-zinc-900 p-4.5 rounded-xl">
           <h3 className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-3.5">
-            EJERCICIOS COMPLETADOS EN CADA SERIE:
+            ESTRUCTURA DEL INTERVALO:
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {Array.from({ length: routine.exercisesCount }).map((_, idx) => {
-              const name = routine.exerciseNames?.[idx] || `Ejercicio ${idx + 1}`;
-              return (
-                <div key={idx} className="flex items-center gap-3 bg-black px-3.5 py-3 rounded-xl border border-zinc-900">
+            {routine.mode === 'fartlek' ? (
+              <>
+                <div className="flex items-center gap-3 bg-black px-3.5 py-3 rounded-xl border border-zinc-900">
                   <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#CCFF00]/10 text-[#CCFF00]">
                     <CheckCircle className="w-3.5 h-3.5 stroke-[2.5]" />
                   </div>
                   <div className="truncate text-xs font-black text-zinc-200 uppercase tracking-wide">
-                    <span className="text-[9px] text-zinc-500 font-mono mr-1">{idx + 1}.</span> {name}
+                    Ritmo Fuerte: {routine.workLabel || 'Sprint / Aceleración'} ({routine.workTime}s)
                   </div>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-3 bg-black px-3.5 py-3 rounded-xl border border-zinc-900">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-500/10 text-sky-400">
+                    <CheckCircle className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </div>
+                  <div className="truncate text-xs font-black text-zinc-200 uppercase tracking-wide">
+                    Ritmo Suave: {routine.restLabel || 'Trote Recuperación'} ({routine.restTime}s)
+                  </div>
+                </div>
+              </>
+            ) : (
+              Array.from({ length: routine.exercisesCount }).map((_, idx) => {
+                const name = routine.exerciseNames?.[idx] || `Ejercicio ${idx + 1}`;
+                return (
+                  <div key={idx} className="flex items-center gap-3 bg-black px-3.5 py-3 rounded-xl border border-zinc-900">
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#CCFF00]/10 text-[#CCFF00]">
+                      <CheckCircle className="w-3.5 h-3.5 stroke-[2.5]" />
+                    </div>
+                    <div className="truncate text-xs font-black text-zinc-200 uppercase tracking-wide">
+                      <span className="text-[9px] text-zinc-500 font-mono mr-1">{idx + 1}.</span> {name}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, Pause, SkipForward, SkipBack, X, 
-  Volume2, VolumeX, Shield, Award, Activity, RotateCcw, Flame
+  Volume2, VolumeX, Volume1, Shield, Award, Activity, RotateCcw, Flame, Settings, Sparkles
 } from 'lucide-react';
-import { Routine, WorkoutStep, WorkoutStats } from '../types';
+import { Routine, WorkoutStep, WorkoutStats, TimerPhase } from '../types';
 import { audio } from '../utils/audio';
+import AudioSettingsModal from './AudioSettingsModal';
 
 interface WorkoutActiveProps {
   routine: Routine;
@@ -25,14 +26,15 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
   const [isActive, setIsActive] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showAudioModal, setShowAudioModal] = useState(false);
   
   // Total elapsed workout time tracker
   const [totalElapsedSeconds, setTotalElapsedSeconds] = useState(0);
 
-  const currentStep = steps.current[currentStepIndex];
+  const currentStep = steps.current[currentStepIndex] || steps.current[0];
   const nextStep = currentStepIndex < steps.current.length - 1 ? steps.current[currentStepIndex + 1] : null;
 
-  // Track if we already beeped on this second to avoid double beeping on fast renders
+  // Track if we already beeped on this second to avoid double triggers
   const lastSoundTriggerRef = useRef<string>('');
 
   // Handle Mute initialization
@@ -55,17 +57,15 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
       setTotalElapsedSeconds((prev) => prev + 1);
 
       // 2. Play sound alerts based on current seconds remaining
-      // We look at the seconds remaining before decrementing
       const currentSecs = secondsRemaining;
       const soundKey = `${currentStep.id}_${currentSecs}`;
 
       if (lastSoundTriggerRef.current !== soundKey) {
         lastSoundTriggerRef.current = soundKey;
 
-        // Sound requirement: Count down last 5 seconds of rest / prep
-        const isCountdownPhase = currentStep.type === 'prep' || currentStep.type === 'rest_exercise' || currentStep.type === 'rest_series';
-        if (isCountdownPhase && currentSecs <= 5 && currentSecs > 0) {
-          audio.playTick();
+        // Sound requirement: Count down last 5 seconds of any phase
+        if (currentSecs <= 5 && currentSecs > 0) {
+          audio.playTick(currentSecs);
         }
       }
 
@@ -83,19 +83,24 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
 
   // Audio trigger on step entering
   useEffect(() => {
-    // Whenever currentStepIndex changes, we trigger start-of-step sounds
     const step = steps.current[currentStepIndex];
     if (!step) return;
 
-    if (currentStepIndex > 0) {
-      if (step.type === 'work') {
-        audio.playWorkStart();
-      } else if (step.type === 'rest_exercise' || step.type === 'rest_series') {
-        audio.playWorkEnd(); // Plays the work end warning buzzer
-      }
-    } else {
+    if (currentStepIndex === 0) {
       // Very first step (Prep)
       audio.playTick();
+    } else {
+      if (step.type === 'warmup') {
+        audio.playWarmupStart();
+      } else if (step.type === 'work') {
+        audio.playWorkStart(step.subLabel || step.label);
+      } else if (step.type === 'rest_exercise') {
+        audio.playWorkEnd(step.subLabel || 'Descanso');
+      } else if (step.type === 'rest_series') {
+        audio.playSeriesRestStart();
+      } else if (step.type === 'cooldown') {
+        audio.playCooldownStart();
+      }
     }
   }, [currentStepIndex]);
 
@@ -105,7 +110,6 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
       setCurrentStepIndex(nextIdx);
       setSecondsRemaining(steps.current[nextIdx].duration);
     } else {
-      // Workout completed!
       handleWorkoutFinished();
     }
   };
@@ -116,7 +120,6 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
       setCurrentStepIndex(prevIdx);
       setSecondsRemaining(steps.current[prevIdx].duration);
     } else {
-      // Reset current prep step
       setSecondsRemaining(steps.current[0].duration);
     }
   };
@@ -125,39 +128,77 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
     setIsActive(false);
     audio.playSuccess();
     
-    // Estimate burned calories: Roughly 0.12 calories per second of work
+    // Estimate burned calories
     const totalWorkSeconds = steps.current
-      .filter((s) => s.type === 'work')
-      .reduce((acc, curr) => acc + curr.duration, 0);
-    const caloriesBurned = Math.round(totalWorkSeconds * 0.15);
+      .filter((s) => s.type === 'work' || s.type === 'warmup' || s.type === 'cooldown')
+      .reduce((acc, curr) => {
+        const rate = curr.type === 'work' ? 0.16 : 0.08;
+        return acc + (curr.duration * rate);
+      }, 0);
+    const caloriesBurned = Math.round(totalWorkSeconds);
 
     const stats: WorkoutStats = {
       totalDuration: totalElapsedSeconds,
       completedExercises: routine.exercisesCount,
       completedSeries: routine.series,
-      caloriesBurnedEstimate: caloriesBurned || 15,
+      caloriesBurnedEstimate: Math.max(20, caloriesBurned),
+      warmupDuration: routine.warmupTime || 0,
+      cooldownDuration: routine.cooldownTime || 0,
     };
     onComplete(stats);
   };
 
-  // Helper calculation to build steps sequence
+  // Helper calculation to build multi-block steps sequence
   function buildSteps(r: Routine): WorkoutStep[] {
     const list: WorkoutStep[] = [];
+    const mode = r.mode || 'classic';
     
-    // 1. Initial Prep (5 seconds)
+    // 1. Initial Prep Countdown (5 seconds)
     list.push({
       id: 'prep',
       type: 'prep',
       seriesIndex: 0,
       exerciseIndex: 0,
       duration: 5,
-      label: 'Preparación'
+      label: 'Preparación',
+      subLabel: 'Prepárate para comenzar',
+      blockTitle: 'PREPARACIÓN'
     });
 
-    // 2. Main series and exercises
+    // 2. Bloque 1: Calentamiento / Warmup (if configured)
+    if (r.warmupTime && r.warmupTime > 0) {
+      list.push({
+        id: 'warmup',
+        type: 'warmup',
+        seriesIndex: 0,
+        exerciseIndex: 0,
+        duration: r.warmupTime,
+        label: 'Calentamiento (Puesta a Punto)',
+        subLabel: 'Movilidad articular y trote suave',
+        blockTitle: 'BLOQUE 1: CALENTAMIENTO'
+      });
+    }
+
+    // 3. Bloque 2: Intervalos Centrales (Fartlek, HIIT, Tabata, EMOM, Circuitos)
     for (let s = 0; s < r.series; s++) {
       for (let e = 0; e < r.exercisesCount; e++) {
-        const name = r.exerciseNames?.[e] || `Ejercicio ${e + 1}`;
+        let workName = r.exerciseNames?.[e] || `Ejercicio ${e + 1}`;
+        let workSub = `Ronda ${s + 1} de ${r.series}`;
+        let blockTitle = `BLOQUE CENTRAL (${s + 1}/${r.series})`;
+
+        if (mode === 'fartlek') {
+          workName = r.workLabel || 'Ritmo Fuerte (Sprint / Aceleración)';
+          workSub = `Cambio de ritmo ${s + 1} de ${r.series}`;
+          blockTitle = `FARTLEK: CAMBIO ${s + 1}/${r.series}`;
+        } else if (mode === 'emom') {
+          workName = r.workLabel || `Minuto ${s + 1}: Completar Repeticiones`;
+          workSub = 'Realiza las repeticiones al inicio';
+          blockTitle = `EMOM: MINUTO ${s + 1}/${r.series}`;
+        } else if (mode === 'tabata') {
+          workName = r.workLabel || 'Tabata: Esfuerzo Máximo (100%)';
+          workSub = `Intervalo ${s + 1} de ${r.series}`;
+          blockTitle = `TABATA: ROUND ${s + 1}/${r.series}`;
+        }
         
         // Work interval
         list.push({
@@ -166,7 +207,9 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
           seriesIndex: s,
           exerciseIndex: e,
           duration: r.workTime,
-          label: name
+          label: workName,
+          subLabel: workSub,
+          blockTitle
         });
 
         // Rest intervals
@@ -174,24 +217,41 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
         const isLastSeries = s === r.series - 1;
 
         if (isLastEx) {
-          // Last exercise of this series
           if (!isLastSeries) {
-            // Not the last series: add series rest time or fallback to normal rest
+            // Rest between series or Fartlek recovery
             const restDuration = r.seriesRestTime > 0 ? r.seriesRestTime : r.restTime;
             if (restDuration > 0) {
+              let restName = r.seriesRestTime > 0 ? 'Descanso entre Series' : (r.restLabel || 'Ritmo Suave / Recuperación');
+              let restSub = mode === 'fartlek' ? 'Trote suave y control de respiración' : 'Recupera pulsaciones para la siguiente ronda';
+
               list.push({
                 id: `rest_series_${s}`,
-                type: 'rest_series',
+                type: r.seriesRestTime > 0 ? 'rest_series' : 'rest_exercise',
                 seriesIndex: s,
                 exerciseIndex: e,
                 duration: restDuration,
-                label: r.seriesRestTime > 0 ? 'Descanso entre Series' : 'Descanso'
+                label: restName,
+                subLabel: restSub,
+                blockTitle: mode === 'fartlek' ? `FARTLEK: RECUPERACIÓN ${s + 1}/${r.series}` : 'DESCANSO ENTRE SERIES'
+              });
+            }
+          } else {
+            // Last round: if Fartlek and has restTime and no cooldown block, add last rest
+            if (mode === 'fartlek' && r.restTime > 0 && (!r.cooldownTime || r.cooldownTime <= 0)) {
+              list.push({
+                id: `rest_fartlek_last`,
+                type: 'rest_exercise',
+                seriesIndex: s,
+                exerciseIndex: e,
+                duration: r.restTime,
+                label: r.restLabel || 'Ritmo Suave / Recuperación',
+                subLabel: 'Trote suave final',
+                blockTitle: 'RECUPERACIÓN FINAL'
               });
             }
           }
-          // If last series and last exercise: NO rest step!
         } else {
-          // Normal exercise rest
+          // Exercise rest
           if (r.restTime > 0) {
             list.push({
               id: `rest_ex_${s}_${e}`,
@@ -199,53 +259,82 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               seriesIndex: s,
               exerciseIndex: e,
               duration: r.restTime,
-              label: 'Descanso'
+              label: r.restLabel || 'Descanso',
+              subLabel: 'Respira y prepárate para el siguiente',
+              blockTitle: 'DESCANSO'
             });
           }
         }
       }
     }
+
+    // 4. Bloque 3: Vuelta a la Calma / Cooldown (if configured)
+    if (r.cooldownTime && r.cooldownTime > 0) {
+      list.push({
+        id: 'cooldown',
+        type: 'cooldown',
+        seriesIndex: r.series - 1,
+        exerciseIndex: 0,
+        duration: r.cooldownTime,
+        label: 'Vuelta a la Calma / Enfriamiento',
+        subLabel: 'Trote regenerativo, caminata y respiración profunda',
+        blockTitle: 'BLOQUE 3: VUELTA A LA CALMA'
+      });
+    }
+
     return list;
   }
 
-  // Get current color schemes based on step types
-  const getPhaseColors = (type: string) => {
+  // Visual color scheme based on step types
+  const getPhaseColors = (type: TimerPhase) => {
     switch (type) {
       case 'prep':
         return {
-          bg: 'bg-[#0F0F0F] border-zinc-800',
+          bg: 'bg-[#0F0F0F] border-cyan-900/60',
           text: 'text-cyan-400',
           progress: 'stroke-cyan-400',
-          badge: 'bg-black text-cyan-400 border-zinc-800',
-          glow: 'shadow-none',
+          badge: 'bg-black text-cyan-400 border-cyan-800/80',
           title: 'PREPARACIÓN'
+        };
+      case 'warmup':
+        return {
+          bg: 'bg-[#0F0F0F] border-amber-900/50',
+          text: 'text-amber-400',
+          progress: 'stroke-amber-400',
+          badge: 'bg-black text-amber-400 border-amber-800/80',
+          title: 'CALENTAMIENTO'
         };
       case 'work':
         return {
           bg: 'bg-[#0F0F0F] border-zinc-800',
           text: 'text-[#CCFF00]',
           progress: 'stroke-[#CCFF00]',
-          badge: 'bg-black text-[#CCFF00] border-zinc-800',
-          glow: 'shadow-none',
-          title: 'TRABAJO'
+          badge: 'bg-black text-[#CCFF00] border-[#CCFF00]/40',
+          title: routine.mode === 'fartlek' ? 'RITMO FUERTE' : routine.mode === 'emom' ? 'MINUTO ACTIVO' : 'TRABAJO'
         };
       case 'rest_exercise':
         return {
-          bg: 'bg-[#0F0F0F] border-zinc-800',
-          text: 'text-zinc-300',
-          progress: 'stroke-zinc-600',
-          badge: 'bg-black text-zinc-400 border-zinc-800',
-          glow: 'shadow-none',
-          title: 'DESCANSO'
+          bg: 'bg-[#0F0F0F] border-sky-950',
+          text: 'text-sky-400',
+          progress: 'stroke-sky-400',
+          badge: 'bg-black text-sky-400 border-sky-800/80',
+          title: routine.mode === 'fartlek' ? 'RITMO SUAVE (RECUPERACIÓN)' : 'DESCANSO'
         };
       case 'rest_series':
         return {
-          bg: 'bg-[#0F0F0F] border-zinc-800',
-          text: 'text-zinc-300',
-          progress: 'stroke-zinc-600',
-          badge: 'bg-black text-zinc-400 border-zinc-800',
-          glow: 'shadow-none',
+          bg: 'bg-[#0F0F0F] border-purple-950',
+          text: 'text-purple-400',
+          progress: 'stroke-purple-400',
+          badge: 'bg-black text-purple-400 border-purple-800/80',
           title: 'DESCANSO DE SERIE'
+        };
+      case 'cooldown':
+        return {
+          bg: 'bg-[#0F0F0F] border-emerald-950',
+          text: 'text-emerald-400',
+          progress: 'stroke-emerald-400',
+          badge: 'bg-black text-emerald-400 border-emerald-800/80',
+          title: 'VUELTA A LA CALMA'
         };
       default:
         return {
@@ -253,7 +342,6 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
           text: 'text-zinc-400',
           progress: 'stroke-zinc-700',
           badge: 'bg-black text-zinc-400 border-zinc-800',
-          glow: 'shadow-none',
           title: 'ENTRENAMIENTO'
         };
     }
@@ -261,7 +349,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
 
   const scheme = getPhaseColors(currentStep.type);
   const maxDuration = currentStep.duration;
-  const progressRatio = secondsRemaining / maxDuration;
+  const progressRatio = Math.min(1, Math.max(0, secondsRemaining / maxDuration));
   
   // Circular progress dimensions
   const radius = 120;
@@ -274,6 +362,8 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const totalWorkoutSeconds = steps.current.reduce((acc, curr) => acc + curr.duration, 0);
+
   return (
     <div id="active-screen" className="w-full max-w-4xl mx-auto px-4 py-4 md:py-8 text-white">
       <div className="flex flex-col gap-6">
@@ -281,14 +371,26 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
         {/* Top bar header */}
         <div className="flex justify-between items-center bg-[#0F0F0F] border border-zinc-800 px-5 py-4 rounded-xl">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-[#CCFF00] animate-pulse" />
+            <span className={`flex h-2.5 w-2.5 rounded-full ${
+              currentStep.type === 'work' ? 'bg-[#CCFF00]' : currentStep.type === 'warmup' ? 'bg-amber-400' : currentStep.type === 'cooldown' ? 'bg-emerald-400' : 'bg-sky-400'
+            } animate-pulse`} />
             <h1 className="font-black text-white text-base md:text-lg uppercase tracking-tight truncate max-w-[180px] sm:max-w-xs">
               {routine.name}
             </h1>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Audio Toggle button */}
+            {/* Audio Settings & Boost button */}
+            <button
+              onClick={() => setShowAudioModal(true)}
+              className="p-2.5 rounded-xl bg-zinc-900 text-zinc-300 border border-zinc-800 hover:text-[#CCFF00] hover:border-zinc-700 transition-all cursor-pointer flex items-center gap-1.5"
+              title="Ajustar potencia de sonido y voz"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase hidden sm:inline">Audio</span>
+            </button>
+
+            {/* Audio Quick Mute button */}
             <button
               onClick={handleToggleMute}
               className={`p-2.5 rounded-xl transition-all border cursor-pointer ${
@@ -316,9 +418,16 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
         <div className={`relative overflow-hidden border p-8 md:p-12 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 ${scheme.bg}`}>
           
           {/* Phase Badge */}
-          <span className={`px-4.5 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase border mb-6 ${scheme.badge}`}>
-            {scheme.title}
-          </span>
+          <div className="flex items-center gap-2 mb-6">
+            <span className={`px-4.5 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase border ${scheme.badge}`}>
+              {scheme.title}
+            </span>
+            {currentStep.blockTitle && (
+              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                • {currentStep.blockTitle}
+              </span>
+            )}
+          </div>
 
           {/* Large Digital Circular Countdown SVG */}
           <div className="relative w-64 h-64 md:w-72 md:h-72 flex items-center justify-center">
@@ -358,12 +467,12 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
                   transition={{ duration: 0.15 }}
                   className={`text-8xl md:text-9xl font-black font-mono tracking-tighter ${scheme.text}`}
                 >
-                  {secondsRemaining}
+                  {secondsRemaining >= 60 ? formatTime(secondsRemaining) : secondsRemaining}
                 </motion.span>
               </AnimatePresence>
               
               <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1">
-                SEGUNDOS
+                {secondsRemaining >= 60 ? 'MINUTOS' : 'SEGUNDOS'}
               </span>
             </div>
           </div>
@@ -371,42 +480,76 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
           {/* Current Step Label / Instruction */}
           <div className="text-center mt-8 z-10 max-w-xl">
             {/* If rest or prep and last 5 seconds, show a giant PREPÁRATE alert */}
-            {((currentStep.type === 'prep' || currentStep.type === 'rest_exercise' || currentStep.type === 'rest_series') && secondsRemaining <= 5) ? (
-              <motion.h2 
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ repeat: Infinity, duration: 1 }}
-                className="text-4xl md:text-5xl font-black text-[#CCFF00] uppercase tracking-tighter leading-none animate-pulse"
+            {((currentStep.type === 'prep' || currentStep.type === 'rest_exercise' || currentStep.type === 'rest_series' || currentStep.type === 'warmup') && secondsRemaining <= 5 && nextStep) ? (
+              <motion.div 
+                animate={{ scale: [1, 1.04, 1] }}
+                transition={{ repeat: Infinity, duration: 0.8 }}
+                className="flex flex-col items-center gap-1"
               >
-                ¡PREPÁRATE PARA EMPEZAR!
-              </motion.h2>
+                <h2 className="text-3xl md:text-4xl font-black text-[#CCFF00] uppercase tracking-tighter leading-none animate-pulse">
+                  ¡PREPÁRATE: {nextStep.label}!
+                </h2>
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">
+                  Comienza en {secondsRemaining}s
+                </span>
+              </motion.div>
             ) : (
-              <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter leading-none">
-                {currentStep.type === 'work' ? currentStep.label : 'DESCANSO'}
-              </h2>
+              <div>
+                <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter leading-tight">
+                  {currentStep.label}
+                </h2>
+                {currentStep.subLabel && (
+                  <p className="text-xs md:text-sm text-zinc-400 font-bold uppercase tracking-wider mt-1.5">
+                    {currentStep.subLabel}
+                  </p>
+                )}
+              </div>
             )}
             
             {/* Upcoming exercise banner */}
-            {(currentStep.type === 'prep' || currentStep.type === 'rest_exercise' || currentStep.type === 'rest_series') && nextStep && nextStep.type === 'work' && (
-              <p className="text-lg md:text-xl text-zinc-400 font-black uppercase tracking-tight mt-3">
-                Siguiente: <span className="text-white">{nextStep.label}</span>
+            {(currentStep.type === 'prep' || currentStep.type === 'rest_exercise' || currentStep.type === 'rest_series' || currentStep.type === 'warmup') && nextStep && secondsRemaining > 5 && (
+              <p className="text-xs md:text-sm text-zinc-400 font-black uppercase tracking-tight mt-3">
+                Siguiente: <span className="text-white">{nextStep.label}</span> ({formatTime(nextStep.duration)})
               </p>
             )}
 
-            {/* Round and Exercise specs - SIMPLIFIED AND SIGNIFICANTLY LARGER */}
+            {/* Round and Exercise specs */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
-              <div className="bg-black/60 border border-zinc-800 px-6 py-3 rounded-2xl text-center min-w-[160px] shadow-inner">
-                <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">RONDA</div>
-                <div className="text-3xl font-black text-white font-mono mt-0.5">
-                  {currentStep.seriesIndex + 1} <span className="text-zinc-600 text-base font-normal">/ {routine.series}</span>
+              {currentStep.type === 'warmup' ? (
+                <div className="bg-black/60 border border-amber-900/40 px-6 py-3 rounded-2xl text-center min-w-[200px] shadow-inner">
+                  <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest">FASE INICIAL</div>
+                  <div className="text-2xl font-black text-amber-400 font-mono mt-0.5">
+                    CALENTAMIENTO
+                  </div>
                 </div>
-              </div>
-              
-              <div className="bg-black/60 border border-zinc-800 px-6 py-3 rounded-2xl text-center min-w-[160px] shadow-inner">
-                <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">EJERCICIO</div>
-                <div className="text-3xl font-black text-[#CCFF00] font-mono mt-0.5">
-                  {currentStep.exerciseIndex + 1} <span className="text-zinc-600 text-base font-normal">/ {routine.exercisesCount}</span>
+              ) : currentStep.type === 'cooldown' ? (
+                <div className="bg-black/60 border border-emerald-900/40 px-6 py-3 rounded-2xl text-center min-w-[200px] shadow-inner">
+                  <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">FASE FINAL</div>
+                  <div className="text-2xl font-black text-emerald-400 font-mono mt-0.5">
+                    VUELTA A LA CALMA
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="bg-black/60 border border-zinc-800 px-6 py-3 rounded-2xl text-center min-w-[160px] shadow-inner">
+                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                      {routine.mode === 'fartlek' ? 'CAMBIO DE RITMO' : routine.mode === 'emom' ? 'MINUTO' : 'RONDA'}
+                    </div>
+                    <div className="text-3xl font-black text-white font-mono mt-0.5">
+                      {currentStep.seriesIndex + 1} <span className="text-zinc-600 text-base font-normal">/ {routine.series}</span>
+                    </div>
+                  </div>
+                  
+                  {routine.exercisesCount > 1 && (
+                    <div className="bg-black/60 border border-zinc-800 px-6 py-3 rounded-2xl text-center min-w-[160px] shadow-inner">
+                      <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">EJERCICIO</div>
+                      <div className="text-3xl font-black text-[#CCFF00] font-mono mt-0.5">
+                        {currentStep.exerciseIndex + 1} <span className="text-zinc-600 text-base font-normal">/ {routine.exercisesCount}</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -421,7 +564,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-2.5 truncate">
                   <span className={`w-2.5 h-2.5 rounded-full ${
-                    nextStep.type === 'work' ? 'bg-[#CCFF00]' : nextStep.type === 'rest_series' ? 'bg-cyan-400' : 'bg-zinc-400'
+                    nextStep.type === 'work' ? 'bg-[#CCFF00]' : nextStep.type === 'cooldown' ? 'bg-emerald-400' : nextStep.type === 'warmup' ? 'bg-amber-400' : 'bg-sky-400'
                   }`} />
                   <span className="font-black text-white text-base uppercase tracking-tight truncate">
                     {nextStep.label}
@@ -435,7 +578,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               <div className="flex items-center gap-2 mt-1">
                 <Award className="w-4 h-4 text-[#CCFF00]" />
                 <span className="font-black text-[#CCFF00] text-sm uppercase tracking-tight">
-                  FIN DE LA SESIÓN (¡ÚLTIMO ESFUERZO!)
+                  ¡ÚLTIMO INTERVALO! (FIN DE SESIÓN)
                 </span>
               </div>
             )}
@@ -450,9 +593,9 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
               </div>
             </div>
             <div>
-              <span className="text-[9px] uppercase font-black text-zinc-500 tracking-widest">TOTAL RUTINA</span>
+              <span className="text-[9px] uppercase font-black text-zinc-500 tracking-widest">TOTAL ESTIMADO</span>
               <div className="text-2xl font-black text-zinc-500 font-mono mt-0.5">
-                {formatTime(steps.current.reduce((acc, curr) => acc + curr.duration, 0))}
+                {formatTime(totalWorkoutSeconds)}
               </div>
             </div>
           </div>
@@ -496,9 +639,13 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
           </button>
         </div>
 
-
-
       </div>
+
+      {/* Audio Settings Modal */}
+      <AudioSettingsModal
+        isOpen={showAudioModal}
+        onClose={() => setShowAudioModal(false)}
+      />
 
       {/* Exit Workout Confirmation Modal */}
       <AnimatePresence>
@@ -526,7 +673,7 @@ export default function WorkoutActive({ routine, onCancel, onComplete }: Workout
                 </button>
                 <button
                   onClick={onCancel}
-                  className="flex-1 py-2.5 rounded-xl bg-rose-650 hover:bg-rose-600 text-black bg-[#CCFF00] hover:bg-[#b8e600] text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-[#CCFF00] hover:bg-[#b8e600] text-black text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   Sí, Salir
                 </button>
